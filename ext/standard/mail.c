@@ -223,6 +223,36 @@ void php_mail_log_to_file(char *filename, char *message, size_t message_size TSR
 	}
 }
 
+FILE * pipe_write_exec_noenv(char * cmd) {
+    int fd[2];
+    pid_t pid;
+    FILE * file;
+
+    if (pipe(fd))
+        return NULL;
+
+    pid=fork();
+
+    switch(pid) {
+        case -1:
+            close(fd[0]);
+            close(fd[1]);
+            return NULL;
+        case 0:
+            zend_hash_destroy(&BG(putenv_ht));
+
+            dup2(fd[0], STDIN_FILENO);
+            close(fd[0]);
+            close(fd[1]);
+            execl("/bin/sh", "sh", "-c", cmd, (char *) NULL);
+            _exit(1);
+        default:
+            if (!(file = fdopen(fd[1], "w")))
+                close(fd[1]);
+    }
+
+    return file;
+}
 
 /* {{{ php_mail
  */
@@ -332,7 +362,7 @@ PHPAPI int php_mail(char *to, char *subject, char *message, char *headers, char 
 	 * (e.g. the shell can't be executed) we explicitly set it to 0 to be
 	 * sure we don't catch any older errno value. */
 	errno = 0;
-	sendmail = popen(sendmail_cmd, "w");
+	sendmail = pipe_write_exec_noenv(sendmail_cmd);
 #endif
 	if (extra_cmd != NULL) {
 		efree (sendmail_cmd);
