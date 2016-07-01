@@ -2413,16 +2413,18 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue TSRMLS_
 				return FAILURE;
 			}
 
-			ZEND_HASH_FOREACH_VAL(ph, current) {
-				SEPARATE_ZVAL(current);
-				convert_to_string_ex(current);
+			if(zend_hash_num_elements(ph) > 0) {
+				ZEND_HASH_FOREACH_VAL(ph, current) {
+					SEPARATE_ZVAL(current);
+					convert_to_string_ex(current);
 
-				slist = curl_slist_append(slist, Z_STRVAL_P(current));
-				if (!slist) {
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, "Could not build curl_slist");
-					return 1;
-				}
-			} ZEND_HASH_FOREACH_END();
+					slist = curl_slist_append(slist, Z_STRVAL_P(current));
+					if (!slist) {
+						php_error_docref(NULL TSRMLS_CC, E_WARNING, "Could not build curl_slist");
+						return 1;
+					}
+				} ZEND_HASH_FOREACH_END();
+			}
 
 			zend_hash_index_update_ptr(ch->to_free->slist, option, slist);
 
